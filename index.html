@@ -9,6 +9,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#FF9900">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
     <style>
         :root {
             --bg-color: #0D0E12;
@@ -497,6 +498,58 @@
         .hero-desc { font-size: 16px; color: var(--text-secondary); max-width: 600px; line-height: 1.5; margin-bottom: 25px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
         .hero-actions { display: flex; gap: 12px; }
 
+        /* HERO SLIDER */
+        .hero-slider-track {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .hero-slide {
+            min-width: 100%;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .hero-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .hero-dot.active {
+            background: var(--accent-color);
+            width: 24px;
+            border-radius: 4px;
+        }
+
+        /* LOTTIE LOADER & ERROR */
+        .lottie-loader-container {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(13, 14, 18, 0.85);
+            z-index: 99999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .lottie-error-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            text-align: center;
+            width: 100%;
+            min-height: 450px;
+        }
+
         /* ROWS */
         .row { margin-bottom: 40px; padding: 0 80px; }
         .row-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
@@ -616,6 +669,12 @@
         </div>
         <div class="splash-status">Where Stories Become Infinite...</div>
     </div>
+</div>
+
+<!-- Lottie Loader Screen -->
+<div id="lottie-loader" class="lottie-loader-container">
+    <div id="lottie-loader-player" style="width: 150px; height: 150px;"></div>
+    <div style="font-size: 16px; font-weight: 700; color: white; margin-top: 15px; letter-spacing: 0.5px;">LOADING CONTENT</div>
 </div>
 
 <!-- Lock Screen -->
@@ -823,6 +882,14 @@
         <div id="search-grid-container" style="display:none;">
             <div class="movie-grid" id="search-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:30px; padding:0 80px;"></div>
         </div>
+
+        <!-- Lottie Error View -->
+        <div id="lottie-error" class="lottie-error-container">
+            <div id="lottie-error-player" style="width: 250px; height: 250px;"></div>
+            <h3 style="font-size:22px; color:var(--accent-color); margin-top:20px;">Oops! Failed to load content</h3>
+            <p style="color:var(--text-secondary); margin-top:10px; font-size:15px; max-width:400px; line-height:1.6;">We couldn't retrieve the media catalog. Please check your internet connection and try again.</p>
+            <button class="btn btn-play focusable" id="btn-error-retry" style="margin-top:24px; padding: 12px 28px;">Retry</button>
+        </div>
     </main>
 </div>
 
@@ -928,6 +995,86 @@
     let sidebarCollapsed = false;
     let activePage = 'home';
     let selectedGenre = 'all';
+
+    // New Slider & Lottie Globals
+    let loaderInstance = null;
+    let errorInstance = null;
+    let heroSliderInterval = null;
+    let currentHeroSlideIndex = 0;
+    let heroSlidesList = [];
+
+    function showLoader() {
+        const loader = document.getElementById('lottie-loader');
+        if (!loader) return;
+        loader.style.display = 'flex';
+        if (!loaderInstance && typeof lottie !== 'undefined') {
+            loaderInstance = lottie.loadAnimation({
+                container: document.getElementById('lottie-loader-player'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: true,
+                path: 'loading.json'
+            });
+        } else if (loaderInstance) {
+            loaderInstance.play();
+        }
+    }
+
+    function hideLoader() {
+        const loader = document.getElementById('lottie-loader');
+        if (loader) loader.style.display = 'none';
+        if (loaderInstance) loaderInstance.pause();
+    }
+
+    function showError(retryCallback) {
+        hideLoader();
+        
+        // Hide normal page layouts
+        const rc = document.getElementById('rows-container');
+        const gpc = document.getElementById('grid-page-container');
+        const spc = document.getElementById('settings-page-container');
+        const sgc = document.getElementById('search-grid-container');
+        if (rc) rc.style.display = 'none';
+        if (gpc) gpc.style.display = 'none';
+        if (spc) spc.style.display = 'none';
+        if (sgc) sgc.style.display = 'none';
+        
+        const errDiv = document.getElementById('lottie-error');
+        if (!errDiv) return;
+        errDiv.style.display = 'flex';
+        
+        if (!errorInstance && typeof lottie !== 'undefined') {
+            errorInstance = lottie.loadAnimation({
+                container: document.getElementById('lottie-error-player'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: true,
+                path: 'error.json'
+            });
+        } else if (errorInstance) {
+            errorInstance.play();
+        }
+        
+        const retryBtn = document.getElementById('btn-error-retry');
+        if (retryBtn) {
+            if (retryCallback) {
+                retryBtn.style.display = 'inline-flex';
+                retryBtn.onclick = () => {
+                    hideError();
+                    retryCallback();
+                };
+            } else {
+                retryBtn.style.display = 'none';
+            }
+            setFocus(retryBtn);
+        }
+    }
+
+    function hideError() {
+        const errDiv = document.getElementById('lottie-error');
+        if (errDiv) errDiv.style.display = 'none';
+        if (errorInstance) errorInstance.pause();
+    }
 
     async function smartFetch(url) {
         try {
@@ -1043,7 +1190,12 @@
         gridContainer.style.display = 'none';
         settingsContainer.style.display = 'none';
         searchContainer.style.display = 'none';
+        hideError();
         document.getElementById('search-input').value = '';
+
+        if (pageId !== 'home') {
+            pauseHeroSlider();
+        }
 
         if (pageId === 'home') {
             rowsContainer.style.display = 'block';
@@ -1065,96 +1217,189 @@
 
     // Dynamic Home rows
     async function loadHomeRows() {
+        showLoader();
+        hideError();
+        document.getElementById('rows-container').style.display = 'block';
+
         const rowsDiv = document.getElementById('home-rows');
         rowsDiv.innerHTML = '';
 
-        // Load Hero Header
-        await loadHeroSection();
+        try {
+            // Load Hero Header
+            await loadHeroSection();
 
-        // 1. Continue Watching
-        const history = getContinueWatching();
-        if (history.length > 0) {
-            appendHomeRow("Continue Watching", "home-continue", history, true);
+            // 1. Continue Watching
+            const history = getContinueWatching();
+            if (history.length > 0) {
+                appendHomeRow("Continue Watching", "home-continue", history, true);
+            }
+
+            let failedFetches = 0;
+
+            // 2. Trending
+            try {
+                const trend = await smartFetch(`${API}/trending/all/week?api_key=${KEY}`);
+                appendHomeRow("Trending Now", "home-trending", trend.results.slice(0, 15));
+            } catch(e){ failedFetches++; }
+
+            // 3. Movies
+            try {
+                const movs = await smartFetch(`${API}/movie/popular?api_key=${KEY}`);
+                appendHomeRow("Popular Movies", "home-movies", movs.results.slice(0, 15));
+            } catch(e){ failedFetches++; }
+
+            // 4. TV Shows
+            try {
+                const tv = await smartFetch(`${API}/tv/popular?api_key=${KEY}`);
+                appendHomeRow("Popular TV Shows", "home-tv", tv.results.slice(0, 15), false, true);
+            } catch(e){ failedFetches++; }
+
+            // 5. Anime Universe
+            try {
+                const res = await fetch('toons.json');
+                const anime = await res.json();
+                appendHomeRow("Anime Universe", "home-anime", anime.slice(0, 15), false, true, true);
+            } catch(e){}
+
+            // 6. Live Channels
+            appendHomeRow("Live Channels", "home-live", LIVE_CHANNELS, false, false, false, true);
+
+            // If all 3 major TMDB fetches failed, show the error screen
+            if (failedFetches >= 3) {
+                throw new Error("Failed to load TMDB categories.");
+            }
+
+            hideLoader();
+        } catch (err) {
+            console.error("loadHomeRows error:", err);
+            showError(() => loadHomeRows());
         }
-
-        // 2. Trending
-        try {
-            const trend = await smartFetch(`${API}/trending/all/week?api_key=${KEY}`);
-            appendHomeRow("Trending Now", "home-trending", trend.results.slice(0, 15));
-        } catch(e){}
-
-        // 3. Movies
-        try {
-            const movs = await smartFetch(`${API}/movie/popular?api_key=${KEY}`);
-            appendHomeRow("Popular Movies", "home-movies", movs.results.slice(0, 15));
-        } catch(e){}
-
-        // 4. TV Shows
-        try {
-            const tv = await smartFetch(`${API}/tv/popular?api_key=${KEY}`);
-            appendHomeRow("Popular TV Shows", "home-tv", tv.results.slice(0, 15), false, true);
-        } catch(e){}
-
-        // 5. Anime Universe
-        try {
-            const res = await fetch('toons.json');
-            const anime = await res.json();
-            appendHomeRow("Anime Universe", "home-anime", anime.slice(0, 15), false, true, true);
-        } catch(e){}
-
-        // 6. Live Channels
-        appendHomeRow("Live Channels", "home-live", LIVE_CHANNELS, false, false, false, true);
     }
 
     async function loadHeroSection() {
         const hero = document.getElementById('hero-section');
+        if (!hero) return;
+        
+        // Stop any existing slider interval
+        if (heroSliderInterval) {
+            clearInterval(heroSliderInterval);
+            heroSliderInterval = null;
+        }
+
         try {
             const res = await smartFetch(`${API}/trending/all/week?api_key=${KEY}`);
-            const item = res.results[0];
-            if (item) {
-                hero.style.display = 'block';
-                hero.style.backgroundImage = `url(https://image.tmdb.org/t/p/original${item.backdrop_path})`;
-                
-                const title = item.title || item.name;
-                const releaseDate = item.release_date || item.first_air_date || '';
-                const year = releaseDate ? releaseDate.split('-')[0] : '2024';
-                const rating = item.vote_average ? item.vote_average.toFixed(1) : '8.7';
+            heroSlidesList = res.results.filter(item => item.backdrop_path).slice(0, 5);
 
-                hero.innerHTML = `
-                    <div class="hero-overlay">
-                        <div class="hero-badges">
-                            <span class="hero-badge badge-blue">4K</span>
-                            <span class="hero-badge badge-grey">PG-13</span>
+            if (heroSlidesList.length > 0) {
+                hero.style.display = 'block';
+                hero.style.backgroundImage = 'none';
+                
+                let trackHtml = `<div id="hero-slider-track" class="hero-slider-track">`;
+                let dotsHtml = `<div id="hero-slider-indicators" style="position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 10;">`;
+
+                heroSlidesList.forEach((item, index) => {
+                    const title = item.title || item.name;
+                    const releaseDate = item.release_date || item.first_air_date || '';
+                    const year = releaseDate ? releaseDate.split('-')[0] : '2024';
+                    const rating = item.vote_average ? item.vote_average.toFixed(1) : '8.7';
+                    const backdrop = `https://image.tmdb.org/t/p/original${item.backdrop_path}`;
+
+                    trackHtml += `
+                        <div class="hero-slide" style="background-image: url(${backdrop});">
+                            <div class="hero-overlay">
+                                <div class="hero-badges">
+                                    <span class="hero-badge badge-blue">4K</span>
+                                    <span class="hero-badge badge-grey">PG-13</span>
+                                </div>
+                                <h1 class="hero-title">${title}</h1>
+                                <div class="hero-meta">
+                                    <span class="rating-star">★ ${rating}/10</span>
+                                    <span style="display:inline-flex; align-items:center; gap:4px;">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                        ${year}
+                                    </span>
+                                    <span style="display:inline-flex; align-items:center; gap:4px;">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                        2h 49m
+                                    </span>
+                                    <span>Sci-Fi · Drama · Adventure</span>
+                                </div>
+                                <p class="hero-desc">${item.overview}</p>
+                                <div class="hero-actions">
+                                    <button class="btn btn-play" style="pointer-events:none;">▶ Watch Now</button>
+                                    <button class="btn btn-back" style="pointer-events:none;">+ Add to Watchlist</button>
+                                    <button class="btn btn-back" style="pointer-events:none;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:2px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                        More Info
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <h1 class="hero-title">${title}</h1>
-                        <div class="hero-meta">
-                            <span class="rating-star">★ ${rating}/10</span>
-                            <span style="display:inline-flex; align-items:center; gap:4px;">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                                ${year}
-                            </span>
-                            <span style="display:inline-flex; align-items:center; gap:4px;">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                2h 49m
-                            </span>
-                            <span>Sci-Fi · Drama · Adventure</span>
-                        </div>
-                        <p class="hero-desc">${item.overview}</p>
-                        <div class="hero-actions">
-                            <button class="btn btn-play" style="pointer-events:none;">▶ Watch Now</button>
-                            <button class="btn btn-back" style="pointer-events:none;">+ Add to Watchlist</button>
-                            <button class="btn btn-back" style="pointer-events:none;">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:2px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                                More Info
-                            </button>
-                        </div>
-                    </div>
-                `;
-                hero.onclick = () => showModal(item, item.media_type === 'tv' || !!item.first_air_date, hero);
+                    `;
+
+                    dotsHtml += `<div class="hero-dot ${index === 0 ? 'active' : ''}" onclick="event.stopPropagation(); goToHeroSlide(${index})"></div>`;
+                });
+
+                trackHtml += `</div>`;
+                dotsHtml += `</div>`;
+
+                hero.innerHTML = trackHtml + dotsHtml;
+                currentHeroSlideIndex = 0;
+                
+                hero.onclick = () => {
+                    const item = heroSlidesList[currentHeroSlideIndex];
+                    if (item) {
+                        showModal(item, item.media_type === 'tv' || !!item.first_air_date, hero);
+                    }
+                };
+
+                hero.onfocus = () => {
+                    pauseHeroSlider();
+                };
+                hero.onblur = () => {
+                    resumeHeroSlider();
+                };
+
+                resumeHeroSlider();
+            } else {
+                hero.style.display = 'none';
             }
         } catch (e) {
             hero.style.display = 'none';
         }
+    }
+
+    function goToHeroSlide(idx) {
+        if (idx < 0 || idx >= heroSlidesList.length) return;
+        currentHeroSlideIndex = idx;
+        const track = document.getElementById('hero-slider-track');
+        if (track) {
+            track.style.transform = `translateX(-${idx * 100}%)`;
+        }
+        const dots = document.querySelectorAll('.hero-dot');
+        dots.forEach((dot, index) => {
+            dot.classList.toggle('active', index === idx);
+        });
+    }
+
+    function pauseHeroSlider() {
+        if (heroSliderInterval) {
+            clearInterval(heroSliderInterval);
+            heroSliderInterval = null;
+        }
+    }
+
+    function resumeHeroSlider() {
+        if (heroSliderInterval) return;
+        const modal = document.getElementById('modal');
+        if (modal && modal.classList.contains('active')) return;
+
+        heroSliderInterval = setInterval(() => {
+            if (heroSlidesList.length > 0) {
+                let nextIdx = (currentHeroSlideIndex + 1) % heroSlidesList.length;
+                goToHeroSlide(nextIdx);
+            }
+        }, 5000);
     }
 
     function appendHomeRow(title, rowId, items, isHistory = false, isTV = false, isToon = false, isLive = false) {
@@ -1231,104 +1476,114 @@
 
     // Grid Page renders (Movies, TV, Anime, Watchlist, etc.)
     async function loadGridPage(pageId) {
+        showLoader();
+        hideError();
+        document.getElementById('grid-page-container').style.display = 'block';
+
         const pills = document.getElementById('genre-pills-container');
         const grid = document.getElementById('main-grid');
         pills.innerHTML = '';
         grid.innerHTML = '';
 
-        if (pageId === 'movies') {
-            const genres = [
-                { id: 'all', name: 'All Movies' },
-                { id: 28, name: 'Action' },
-                { id: 35, name: 'Comedy' },
-                { id: 878, name: 'Sci-Fi' },
-                { id: 27, name: 'Horror' },
-                { id: 10749, name: 'Romance' },
-                { id: 53, name: 'Thriller' }
-            ];
-            renderGenrePills(genres, pageId);
-            await fetchGridContent(pageId);
-        } else if (pageId === 'tvshows') {
-            const genres = [
-                { id: 'all', name: 'All TV Shows' },
-                { id: 10759, name: 'Action & Adventure' },
-                { id: 16, name: 'Animation' },
-                { id: 35, name: 'Comedy' },
-                { id: 18, name: 'Drama' },
-                { id: 10765, name: 'Sci-Fi & Fantasy' }
-            ];
-            renderGenrePills(genres, pageId);
-            await fetchGridContent(pageId);
-        } else if (pageId === 'anime') {
-            const res = await fetch('toons.json');
-            const anime = await res.json();
-            anime.forEach(item => {
-                const card = createGridCard(item.image, () => {
-                    showModal({
-                        ...item,
-                        id: item.tmdbId,
-                        poster_path: item.image,
-                        isToon: true
-                    }, true, card);
+        try {
+            if (pageId === 'movies') {
+                const genres = [
+                    { id: 'all', name: 'All Movies' },
+                    { id: 28, name: 'Action' },
+                    { id: 35, name: 'Comedy' },
+                    { id: 878, name: 'Sci-Fi' },
+                    { id: 27, name: 'Horror' },
+                    { id: 10749, name: 'Romance' },
+                    { id: 53, name: 'Thriller' }
+                ];
+                renderGenrePills(genres, pageId);
+                await fetchGridContent(pageId);
+            } else if (pageId === 'tvshows') {
+                const genres = [
+                    { id: 'all', name: 'All TV Shows' },
+                    { id: 10759, name: 'Action & Adventure' },
+                    { id: 16, name: 'Animation' },
+                    { id: 35, name: 'Comedy' },
+                    { id: 18, name: 'Drama' },
+                    { id: 10765, name: 'Sci-Fi & Fantasy' }
+                ];
+                renderGenrePills(genres, pageId);
+                await fetchGridContent(pageId);
+            } else if (pageId === 'anime') {
+                const res = await fetch('toons.json');
+                const anime = await res.json();
+                anime.forEach(item => {
+                    const card = createGridCard(item.image, () => {
+                        showModal({
+                            ...item,
+                            id: item.tmdbId,
+                            poster_path: item.image,
+                            isToon: true
+                        }, true, card);
+                    });
+                    grid.appendChild(card);
                 });
-                grid.appendChild(card);
-            });
-        } else if (pageId === 'kids') {
-            const res = await smartFetch(`${API}/discover/movie?api_key=${KEY}&with_genres=16,10751`);
-            res.results.forEach(item => {
-                if(!item.poster_path) return;
-                const card = createGridCard(IMG + item.poster_path, () => showModal(item, false, card));
-                grid.appendChild(card);
-            });
-        } else if (pageId === 'live') {
-            LIVE_CHANNELS.forEach(item => {
-                const card = createGridCard(item.image, () => playVideo(item.embedUrl, item.title, true));
-                grid.appendChild(card);
-            });
-        } else if (pageId === 'trending') {
-            const res = await smartFetch(`${API}/trending/all/week?api_key=${KEY}`);
-            res.results.forEach(item => {
-                if(!item.poster_path) return;
-                const card = createGridCard(IMG + item.poster_path, () => showModal(item, item.media_type === 'tv', card));
-                grid.appendChild(card);
-            });
-        } else if (pageId === 'toprated') {
-            const res = await smartFetch(`${API}/movie/top_rated?api_key=${KEY}`);
-            res.results.forEach(item => {
-                if(!item.poster_path) return;
-                const card = createGridCard(IMG + item.poster_path, () => showModal(item, false, card));
-                grid.appendChild(card);
-            });
-        } else if (pageId === 'continue') {
-            const history = getContinueWatching();
-            history.forEach(item => {
-                const card = createGridCard(item.poster_path || item.image, () => showModal(item, item.isTV, card));
-                
-                // Add overlays
-                const timeLeft = item.timeLeft || "28 min left";
-                const progressPercent = item.progressPercent || 65;
-                
-                const badge = document.createElement('div');
-                badge.className = 'card-time-badge';
-                badge.innerHTML = `
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    ${timeLeft}
-                `;
-                card.appendChild(badge);
+            } else if (pageId === 'kids') {
+                const res = await smartFetch(`${API}/discover/movie?api_key=${KEY}&with_genres=16,10751`);
+                res.results.forEach(item => {
+                    if(!item.poster_path) return;
+                    const card = createGridCard(IMG + item.poster_path, () => showModal(item, false, card));
+                    grid.appendChild(card);
+                });
+            } else if (pageId === 'live') {
+                LIVE_CHANNELS.forEach(item => {
+                    const card = createGridCard(item.image, () => playVideo(item.embedUrl, item.title, true));
+                    grid.appendChild(card);
+                });
+            } else if (pageId === 'trending') {
+                const res = await smartFetch(`${API}/trending/all/week?api_key=${KEY}`);
+                res.results.forEach(item => {
+                    if(!item.poster_path) return;
+                    const card = createGridCard(IMG + item.poster_path, () => showModal(item, item.media_type === 'tv', card));
+                    grid.appendChild(card);
+                });
+            } else if (pageId === 'toprated') {
+                const res = await smartFetch(`${API}/movie/top_rated?api_key=${KEY}`);
+                res.results.forEach(item => {
+                    if(!item.poster_path) return;
+                    const card = createGridCard(IMG + item.poster_path, () => showModal(item, false, card));
+                    grid.appendChild(card);
+                });
+            } else if (pageId === 'continue') {
+                const history = getContinueWatching();
+                history.forEach(item => {
+                    const card = createGridCard(item.poster_path || item.image, () => showModal(item, item.isTV, card));
+                    
+                    // Add overlays
+                    const timeLeft = item.timeLeft || "28 min left";
+                    const progressPercent = item.progressPercent || 65;
+                    
+                    const badge = document.createElement('div');
+                    badge.className = 'card-time-badge';
+                    badge.innerHTML = `
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        ${timeLeft}
+                    `;
+                    card.appendChild(badge);
 
-                const progress = document.createElement('div');
-                progress.className = 'card-progress-bar';
-                progress.innerHTML = `<div class="card-progress" style="width: ${progressPercent}%;"></div>`;
-                card.appendChild(progress);
-                
-                grid.appendChild(card);
-            });
-        } else if (pageId === 'mylist') {
-            const watchlist = getWatchlist();
-            watchlist.forEach(item => {
-                const card = createGridCard(item.poster_path || item.image, () => showModal(item, item.isTV, card));
-                grid.appendChild(card);
-            });
+                    const progress = document.createElement('div');
+                    progress.className = 'card-progress-bar';
+                    progress.innerHTML = `<div class="card-progress" style="width: ${progressPercent}%;"></div>`;
+                    card.appendChild(progress);
+                    
+                    grid.appendChild(card);
+                });
+            } else if (pageId === 'mylist') {
+                const watchlist = getWatchlist();
+                watchlist.forEach(item => {
+                    const card = createGridCard(item.poster_path || item.image, () => showModal(item, item.isTV, card));
+                    grid.appendChild(card);
+                });
+            }
+            hideLoader();
+        } catch (err) {
+            console.error("loadGridPage error:", err);
+            showError(() => loadGridPage(pageId));
         }
     }
 
@@ -1349,6 +1604,8 @@
     }
 
     async function fetchGridContent(pageId) {
+        showLoader();
+        hideError();
         const grid = document.getElementById('main-grid');
         grid.innerHTML = '';
         
@@ -1370,7 +1627,11 @@
                 const card = createGridCard(IMG + item.poster_path, () => showModal(item, pageId === 'tvshows' || !!item.first_air_date, card));
                 grid.appendChild(card);
             });
-        } catch(e){}
+            hideLoader();
+        } catch(e){
+            console.error("fetchGridContent error:", e);
+            showError(() => fetchGridContent(pageId));
+        }
     }
 
     function createGridCard(imgSrc, clickHandler) {
@@ -1426,12 +1687,12 @@
 
         // Cache clears
         document.getElementById('btn-clear-history').onclick = () => {
-            localStorage.removeItem('cinevera_continue');
+            localStorage.setItem('cinevera_continue', '[]');
             alert('Continue Watching history cleared.');
             loadSettingsPage();
         };
         document.getElementById('btn-clear-watchlist').onclick = () => {
-            localStorage.removeItem('cinevera_watchlist');
+            localStorage.setItem('cinevera_watchlist', '[]');
             alert('Watchlist cleared.');
             loadSettingsPage();
         };
@@ -1497,44 +1758,61 @@
 
     // Prepopulate localStorage caches if empty
     function initLocalStorage() {
-        if (!localStorage.getItem('cinevera_continue')) {
-            const defaults = [
-                { id: 157336, title: "Interstellar", poster_path: "https://image.tmdb.org/t/p/w500/gEU2Qv6w367vCwjYh846vPtTfhD.jpg", isTV: false, timeLeft: "28 min left", progressPercent: 70, s: 1, e: 1 },
-                { id: 438631, title: "Dune", poster_path: "https://image.tmdb.org/t/p/w500/d5NXSklXkiLTIv14nOIU1FG4tVx.jpg", isTV: false, timeLeft: "1h 42m left", progressPercent: 45, s: 1, e: 1 },
-                { id: 27205, title: "Inception", poster_path: "https://image.tmdb.org/t/p/w500/xOMo8AyR27fQI6Z66q6mCthMI6W.jpg", isTV: false, timeLeft: "8 min left", progressPercent: 95, s: 1, e: 1 },
-                { id: 49047, title: "Gravity", poster_path: "https://image.tmdb.org/t/p/w500/wZA18n4vK35JjJmJz0t4aPP3aee.jpg", isTV: false, timeLeft: "42 min left", progressPercent: 55, s: 1, e: 1 }
-            ];
-            localStorage.setItem('cinevera_continue', JSON.stringify(defaults));
-        }
-        
-        if (!localStorage.getItem('cinevera_watchlist')) {
-            const defaults = [
-                { id: 31911, title: "Naruto Shippuden", poster_path: "https://image.tmdb.org/t/p/w500/AkhxnKGDcNKikr1xDP4mi1wpfEr.jpg", isTV: true },
-                { id: 95479, title: "Jujutsu Kaisen", poster_path: "https://image.tmdb.org/t/p/w500/wXyOAIxNUFTEk9Mpj7Ca4jCibMf.jpg", isTV: true },
-                { id: 85937, title: "Demon Slayer: Kimetsu no Yaiba", poster_path: "https://image.tmdb.org/t/p/w500/9npgB8fyf7qN8F4ngkuY2eHczxD.jpg", isTV: true }
-            ];
-            localStorage.setItem('cinevera_watchlist', JSON.stringify(defaults));
+        if (!localStorage.getItem('cinevera_initialized')) {
+            if (!localStorage.getItem('cinevera_continue')) {
+                const defaults = [
+                    { id: 157336, title: "Interstellar", poster_path: "https://image.tmdb.org/t/p/w500/gEU2Qv6w367vCwjYh846vPtTfhD.jpg", isTV: false, timeLeft: "28 min left", progressPercent: 70, s: 1, e: 1 },
+                    { id: 438631, title: "Dune", poster_path: "https://image.tmdb.org/t/p/w500/d5NXSklXkiLTIv14nOIU1FG4tVx.jpg", isTV: false, timeLeft: "1h 42m left", progressPercent: 45, s: 1, e: 1 },
+                    { id: 27205, title: "Inception", poster_path: "https://image.tmdb.org/t/p/w500/xOMo8AyR27fQI6Z66q6mCthMI6W.jpg", isTV: false, timeLeft: "8 min left", progressPercent: 95, s: 1, e: 1 },
+                    { id: 49047, title: "Gravity", poster_path: "https://image.tmdb.org/t/p/w500/wZA18n4vK35JjJmJz0t4aPP3aee.jpg", isTV: false, timeLeft: "42 min left", progressPercent: 55, s: 1, e: 1 }
+                ];
+                localStorage.setItem('cinevera_continue', JSON.stringify(defaults));
+            }
+            if (!localStorage.getItem('cinevera_watchlist')) {
+                const defaults = [
+                    { id: 31911, title: "Naruto Shippuden", poster_path: "https://image.tmdb.org/t/p/w500/AkhxnKGDcNKikr1xDP4mi1wpfEr.jpg", isTV: true },
+                    { id: 95479, title: "Jujutsu Kaisen", poster_path: "https://image.tmdb.org/t/p/w500/wXyOAIxNUFTEk9Mpj7Ca4jCibMf.jpg", isTV: true },
+                    { id: 85937, title: "Demon Slayer: Kimetsu no Yaiba", poster_path: "https://image.tmdb.org/t/p/w500/9npgB8fyf7qN8F4ngkuY2eHczxD.jpg", isTV: true }
+                ];
+                localStorage.setItem('cinevera_watchlist', JSON.stringify(defaults));
+            }
+            localStorage.setItem('cinevera_initialized', 'true');
         }
     }
 
     // Global Search
     async function search(q) {
+        showLoader();
+        hideError();
+        
         document.getElementById('rows-container').style.display = 'none';
         document.getElementById('grid-page-container').style.display = 'none';
         document.getElementById('settings-page-container').style.display = 'none';
         document.getElementById('search-grid-container').style.display = 'block';
 
-        const res = await smartFetch(`${API}/search/multi?api_key=${KEY}&query=${q}`);
-        const grid = document.getElementById('search-grid'); grid.innerHTML = '';
-        res.results.forEach(item => {
-            if(!item.poster_path && !item.backdrop_path) return;
-            const card = createGridCard(IMG + (item.poster_path || item.backdrop_path), () => showModal(item, item.media_type === 'tv', card));
-            grid.appendChild(card);
-        });
+        try {
+            const res = await smartFetch(`${API}/search/multi?api_key=${KEY}&query=${q}`);
+            const grid = document.getElementById('search-grid'); grid.innerHTML = '';
+            
+            const validResults = res.results.filter(item => item.poster_path || item.backdrop_path);
+            if (validResults.length === 0) {
+                throw new Error("No search results found.");
+            }
+
+            validResults.forEach(item => {
+                const card = createGridCard(IMG + (item.poster_path || item.backdrop_path), () => showModal(item, item.media_type === 'tv', card));
+                grid.appendChild(card);
+            });
+            hideLoader();
+        } catch(e){
+            console.error("search error:", e);
+            showError(() => search(q));
+        }
     }
 
     // Show Details Modal
     async function showModal(item, isTV, cardEl) {
+        pauseHeroSlider();
         lastFocusedCard = cardEl || focused;
         const m = document.getElementById('modal'); m.classList.add('active');
         
@@ -1606,6 +1884,7 @@
         if (lastFocusedCard) {
             setFocus(lastFocusedCard);
         }
+        resumeHeroSlider();
     }
 
     function playVideo(url, title, isLive = false) {
@@ -1668,6 +1947,20 @@
     function handleKeys(e) {
         const isLockVisible = document.getElementById('lock-screen').classList.contains('active') && !document.getElementById('lock-screen').classList.contains('unlocked');
         if(isLockVisible && e.key >= '0' && e.key <= '9') { pressPin(e.key); return; }
+        
+        if (focused && focused.id === 'hero-section') {
+            if (e.key === 'ArrowLeft') {
+                if (currentHeroSlideIndex > 0) {
+                    goToHeroSlide(currentHeroSlideIndex - 1);
+                    return;
+                }
+            } else if (e.key === 'ArrowRight') {
+                if (currentHeroSlideIndex < heroSlidesList.length - 1) {
+                    goToHeroSlide(currentHeroSlideIndex + 1);
+                    return;
+                }
+            }
+        }
         
         if(e.key === 'ArrowUp') move(-1, 0); 
         if(e.key === 'ArrowDown') move(1, 0); 
