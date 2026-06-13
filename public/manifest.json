@@ -1,0 +1,16 @@
+{
+  "name": "Cinevera",
+  "short_name": "Cinevera",
+  "description": "Cinevera - Where Stories Become Infinite",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#0D0E12",
+  "theme_color": "#FF9900",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

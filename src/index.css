@@ -1,0 +1,182 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0F1117;
+  --sidebar: #161B22;
+  --surface: #1B2028;
+  --card: #222933;
+  --accent: #FF9900;
+  --accent-hover: #E68900;
+  --blue: #4F6B95;
+  --text-primary: #FFFFFF;
+  --text-secondary: #AAB2BF;
+  --border: rgba(255, 255, 255, 0.08);
+  --scrollbar-track: #161B22;
+  --scrollbar-thumb: #2C3340;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, sans-serif;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3C4450;
+}
+
+/* Hide scrollbar for carousel rows */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Focus ring for accessibility */
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Skeleton loading animation */
+.skeleton {
+  background: linear-gradient(90deg, var(--card) 25%, #2C3340 50%, var(--card) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Gradient overlays for hero */
+.hero-gradient {
+  background: linear-gradient(
+    to right,
+    rgba(15, 17, 23, 0.95) 0%,
+    rgba(15, 17, 23, 0.7) 50%,
+    rgba(15, 17, 23, 0.1) 100%
+  );
+}
+
+.hero-bottom-gradient {
+  background: linear-gradient(
+    to top,
+    rgba(15, 17, 23, 1) 0%,
+    rgba(15, 17, 23, 0.5) 40%,
+    transparent 100%
+  );
+}
+
+/* Card hover state */
+.content-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.content-card:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+/* Progress bar gradient */
+.progress-gradient {
+  background: linear-gradient(90deg, var(--accent), #FFB347);
+}
+
+/* Smooth text truncation */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Number badge for top 10 */
+.rank-badge {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+}
+
+/* AWS-style button */
+.btn-primary {
+  background-color: var(--accent);
+  color: #000;
+  font-weight: 600;
+  padding: 8px 20px;
+  border-radius: 4px;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+}
+.btn-primary:hover {
+  background-color: var(--accent-hover);
+  transform: translateY(-1px);
+}
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  font-weight: 500;
+  padding: 8px 20px;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 14px;
+}
+.btn-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+/* TV-friendly focus states */
+@media (min-width: 1920px) {
+  .content-card:focus {
+    outline: 3px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+}
