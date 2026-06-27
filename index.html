@@ -743,7 +743,16 @@
         .see-all-link { color: var(--accent-color); font-size: 12px; font-weight: 700; cursor: pointer; transition: 0.2s; }
         .see-all-link.focused, .see-all-link:hover { text-decoration: underline; }
 
-        .poster-grid { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0; scrollbar-width: none; }
+        .poster-grid {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            overflow-y: visible;
+            padding: 40px 0 120px 0;
+            margin-top: -30px;
+            margin-bottom: -90px;
+            scrollbar-width: none;
+        }
         .poster-grid::-webkit-scrollbar { display: none; }
         
         /* CARD OVERRIDES */
@@ -796,7 +805,7 @@
         /* Hover & Keyboard Focus Zoom Pop-out states */
         .movie-card:hover .movie-card-inner,
         .movie-card.focused .movie-card-inner {
-            transform: scale(1.3);
+            transform: scale(1.25) translateY(-10%);
             background: #181818;
             z-index: 100;
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.95);
@@ -821,13 +830,13 @@
 
         /* Add transition-delay ONLY on mouse hover, keep keyboard focus instant */
         .movie-card:hover .movie-card-inner {
-            transition-delay: 0.4s;
+            transition-delay: 0.25s;
         }
         .movie-card:hover .movie-card-inner img {
-            transition-delay: 0.4s;
+            transition-delay: 0.25s;
         }
         .movie-card:hover .movie-card-hover-details {
-            animation-delay: 0.4s;
+            animation-delay: 0.25s;
         }
 
         @keyframes fadeInDetails {
@@ -1779,7 +1788,7 @@
     <div id="p-youtube" style="width:100%; height:100%; display:none;"></div>
     
     <!-- Standard Iframe -->
-    <iframe id="p-frame" src="" allowfullscreen referrerpolicy="no-referrer" style="width:100%; height:100%; border:none;"></iframe>
+    <iframe id="p-frame" src="" sandbox="allow-scripts allow-same-origin" allowfullscreen referrerpolicy="no-referrer" style="width:100%; height:100%; border:none;"></iframe>
 </div>
 
 <script>
@@ -1791,7 +1800,7 @@
     // Multi-server streaming
     const SERVERS = {
         1: { name: 'Server 1', movie: (id) => `%VITE_STREAM_SERVER_1_MOVIE%${id}`, tv: (id, s, e) => `%VITE_STREAM_SERVER_1_TV%${id}&season=${s}&episode=${e}` },
-        2: { name: 'Server 2', movie: (id) => `%VITE_STREAM_SERVER_2_MOVIE%${id}`, tv: (id, s, e) => `%VITE_STREAM_SERVER_2_TV%${id}/${s}/${e}` }
+        2: { name: 'Server 2', movie: (id) => `%VITE_STREAM_SERVER_2_MOVIE%${id}`, tv: (id, s, e) => `%VITE_STREAM_SERVER_2_TV%${id}/${s}-${e}` }
     };
     let currentServer = parseInt(localStorage.getItem('cv-server') || '1');
     let currentStreamInfo = null; // { tmdbId, isTV, season, episode, title }
@@ -2092,7 +2101,7 @@
 
     // PIN Pad logic
     function getCorrectPIN() {
-        return localStorage.getItem('cinevera_pin') || '1303';
+        return localStorage.getItem('cinevera_pin') || '%VITE_DEFAULT_PIN%';
     }
     function pressPin(num) {
         if(currentPin.length < 4) {
@@ -2842,7 +2851,7 @@
             }
         };
         document.getElementById('btn-reset-pin').onclick = () => {
-            localStorage.setItem('cinevera_pin', '1303');
+            localStorage.setItem('cinevera_pin', '%VITE_DEFAULT_PIN%');
             alert('Access PIN has been reset to default.');
         };
 
@@ -3636,8 +3645,8 @@
                 setTimeout(() => {
                     prog.style.display = 'none';
                     const link = document.createElement('a');
-                    link.href = 'VikasTV_Windows_App.zip';
-                    link.download = 'VikasTV_Windows_App.zip';
+                    link.href = '%VITE_WINDOWS_APP_URL%';
+                    link.download = '%VITE_WINDOWS_APP_URL%';
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);

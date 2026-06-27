@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vikas-tv-v1';
+const CACHE_NAME = 'cinevera-tv-v1';
 
 self.addEventListener('install', (e) => {
   console.log('[Service Worker] Install event triggered.');
