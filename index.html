@@ -1788,10 +1788,21 @@
     <div id="p-youtube" style="width:100%; height:100%; display:none;"></div>
     
     <!-- Standard Iframe -->
-    <iframe id="p-frame" src="" sandbox="allow-scripts allow-same-origin" allowfullscreen referrerpolicy="no-referrer" style="width:100%; height:100%; border:none;"></iframe>
+    <iframe id="p-frame" src="" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="no-referrer" style="width:100%; height:100%; border:none;"></iframe>
 </div>
 
 <script>
+    // Popup ad interceptor for streaming embed player
+    const _origWindowOpen = window.open;
+    window.open = function(...args) {
+        const p = document.getElementById('player');
+        if (p && p.classList.contains('active')) {
+            console.warn('[Ad Blocker] Blocked popup window:', args[0]);
+            return null;
+        }
+        return _origWindowOpen.apply(this, args);
+    };
+
     const KEY = '%VITE_TMDB_API_KEY%';
     const API = '%VITE_TMDB_API_URL%';
     const IMG = '%VITE_TMDB_IMG_URL%';
