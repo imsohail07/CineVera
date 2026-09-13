@@ -3244,13 +3244,34 @@
         resumeHeroSlider();
     }
 
-    function playVideo(url, title, isLive = false) {
+    function playVideo(url, title, isLive = false, streamMeta = null) {
         hidePlayerError();
         document.getElementById('player').classList.add('active');
         
         // Set Now Playing title in top bar
         const mediaTitle = document.getElementById('p-media-title');
         if (mediaTitle) mediaTitle.textContent = title || '';
+
+        // Save active playback state across refreshes
+        const meta = streamMeta || currentStreamInfo || { title, url, isLive };
+        if (meta) {
+            sessionStorage.setItem('cinevera_active_player', JSON.stringify({
+                ...meta,
+                url: url,
+                title: title,
+                isLive: isLive
+            }));
+            
+            if (meta.tmdbId) {
+                if (meta.isTV) {
+                    history.replaceState(null, '', `#watch-tv-${meta.tmdbId}-${meta.season || 1}-${meta.episode || 1}`);
+                } else {
+                    history.replaceState(null, '', `#watch-movie-${meta.tmdbId}`);
+                }
+            } else if (isLive) {
+                history.replaceState(null, '', `#watch-live-${encodeURIComponent(title)}`);
+            }
+        }
         
         if (isLive) {
             document.getElementById('p-next').style.display = 'none';
@@ -3659,15 +3680,49 @@
                            sessionStorage.getItem('cinevera_authenticated') === 'true';
 
             const hashPage = window.location.hash ? window.location.hash.replace('#', '') : '';
-            const targetPage = hashPage || localStorage.getItem('cinevera_current_page') || 'home';
+            const rawPage = hashPage.startsWith('watch-') ? (localStorage.getItem('cinevera_current_page') || 'home') : hashPage;
+            const targetPage = rawPage || localStorage.getItem('cinevera_current_page') || 'home';
 
             if (isAuth) {
                 // Skip lock screen immediately and load the current page
-                setTimeout(() => {
+                setTimeout(async () => {
                     document.getElementById('splash-screen').classList.add('hidden');
                     document.getElementById('lock-screen').style.display = 'none';
                     document.getElementById('main-app').style.opacity = '1';
                     showPage(targetPage);
+
+                    // Check if user refreshed while actively watching a movie/episode
+                    const savedPlayback = sessionStorage.getItem('cinevera_active_player');
+                    if (savedPlayback) {
+                        try {
+                            const pb = JSON.parse(savedPlayback);
+                            if (pb && pb.url) {
+                                currentStreamInfo = { tmdbId: pb.tmdbId, isTV: pb.isTV, season: pb.season, episode: pb.episode, title: pb.title };
+                                if (pb.isTV) {
+                                    currentTV = { id: pb.tmdbId, s: pb.season, e: pb.episode, maxE: pb.maxE || 50 };
+                                    document.getElementById('p-next').style.display = 'block';
+                                }
+                                playVideo(pb.url, pb.title, pb.isLive, pb);
+                            }
+                        } catch(e) {
+                            console.error('Error restoring playback:', e);
+                        }
+                    } else if (hashPage.startsWith('watch-')) {
+                        const parts = hashPage.replace('watch-', '').split('-');
+                        const type = parts[0];
+                        const id = parts[1];
+                        if (type === 'movie' && id) {
+                            const url = getStreamUrl(id, false);
+                            playVideo(url, 'Now Playing', false, { tmdbId: id, isTV: false });
+                        } else if (type === 'tv' && id) {
+                            const s = parseInt(parts[2]) || 1;
+                            const e = parseInt(parts[3]) || 1;
+                            currentTV = { id: id, s: s, e: e, maxE: 50 };
+                            document.getElementById('p-next').style.display = 'block';
+                            const url = getStreamUrl(id, true, s, e);
+                            playVideo(url, `TV Show - S${s} E${e}`, false, { tmdbId: id, isTV: true, season: s, episode: e });
+                        }
+                    }
                 }, 400);
             } else {
                 // Splash timer -> show lock pad
@@ -3696,6 +3751,10 @@
                     if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
                     else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
                 }
+                sessionStorage.removeItem('cinevera_active_player');
+                currentStreamInfo = null;
+                history.replaceState(null, '', `#${activePage || 'home'}`);
+
                 document.getElementById('player').classList.remove('active');
                 document.getElementById('p-frame').src = '';
                 document.getElementById('p-frame').style.display = 'none';
