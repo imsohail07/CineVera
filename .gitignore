@@ -95,3 +95,4 @@ dist-ssr/
 .parcel-cache
 .cache
 .vite
+.firebase/
