@@ -1630,6 +1630,7 @@
                         <div class="profile-dropdown-item focusable" onclick="showPage('continue')">🕒 Continue Watching</div>
                         <div class="profile-dropdown-item focusable" onclick="showPage('toprated')">⭐ Top Rated</div>
                         <div class="profile-dropdown-item focusable" id="btn-profile-download">📥 Download App</div>
+                        <div class="profile-dropdown-item focusable" onclick="lockApp()">🔒 Lock App</div>
                     </div>
                 </div>
             </div>
@@ -2142,12 +2143,32 @@
         }
     }
     function unlock() {
+        const rememberMe = document.getElementById('remember-me')?.checked !== false;
+        if (rememberMe) {
+            localStorage.setItem('cinevera_authenticated', 'true');
+        } else {
+            sessionStorage.setItem('cinevera_authenticated', 'true');
+        }
         document.getElementById('lock-screen').classList.add('unlocked');
         document.getElementById('main-app').style.opacity = '1';
         setTimeout(() => {
             document.getElementById('lock-screen').style.display = 'none';
-            showPage('home');
+            const hashPage = window.location.hash ? window.location.hash.replace('#', '') : '';
+            const targetPage = hashPage || localStorage.getItem('cinevera_current_page') || 'home';
+            showPage(targetPage);
         }, 800);
+    }
+
+    function lockApp() {
+        localStorage.removeItem('cinevera_authenticated');
+        sessionStorage.removeItem('cinevera_authenticated');
+        const lockScreen = document.getElementById('lock-screen');
+        lockScreen.classList.remove('unlocked');
+        lockScreen.classList.add('active');
+        lockScreen.style.display = 'flex';
+        document.getElementById('main-app').style.opacity = '0';
+        clearPin();
+        setFocus(document.querySelectorAll('.pin-btn')[0]);
     }
 
     // Sidebar collapse
@@ -2163,6 +2184,10 @@
     function showPage(pageId) {
         activePage = pageId;
         selectedGenre = 'all';
+        localStorage.setItem('cinevera_current_page', pageId);
+        if (window.location.hash !== `#${pageId}`) {
+            history.replaceState(null, '', `#${pageId}`);
+        }
 
         // Nav active class for Cinevera horizontal header links
         document.querySelectorAll('.nav-link-item').forEach(item => item.classList.remove('active'));
@@ -3568,13 +3593,38 @@
 
             // Register global key listener
             window.addEventListener('keydown', handleKeys);
-            
-            // Splash timer -> show lock pad
-            setTimeout(() => {
-                document.getElementById('splash-screen').classList.add('hidden');
-                document.getElementById('lock-screen').classList.add('active');
-                setFocus(document.querySelectorAll('.pin-btn')[0]);
-            }, 1800);
+
+            // Browser back/forward navigation support
+            window.addEventListener('hashchange', () => {
+                const newHash = window.location.hash ? window.location.hash.replace('#', '') : 'home';
+                if (newHash && newHash !== activePage) {
+                    showPage(newHash);
+                }
+            });
+
+            // Check if user is already authenticated (Remember Me or session active)
+            const isAuth = localStorage.getItem('cinevera_authenticated') === 'true' || 
+                           sessionStorage.getItem('cinevera_authenticated') === 'true';
+
+            const hashPage = window.location.hash ? window.location.hash.replace('#', '') : '';
+            const targetPage = hashPage || localStorage.getItem('cinevera_current_page') || 'home';
+
+            if (isAuth) {
+                // Skip lock screen immediately and load the current page
+                setTimeout(() => {
+                    document.getElementById('splash-screen').classList.add('hidden');
+                    document.getElementById('lock-screen').style.display = 'none';
+                    document.getElementById('main-app').style.opacity = '1';
+                    showPage(targetPage);
+                }, 400);
+            } else {
+                // Splash timer -> show lock pad
+                setTimeout(() => {
+                    document.getElementById('splash-screen').classList.add('hidden');
+                    document.getElementById('lock-screen').classList.add('active');
+                    setFocus(document.querySelectorAll('.pin-btn')[0]);
+                }, 1200);
+            }
 
             // Wire search input
             document.getElementById('search-input').oninput = (e) => {
