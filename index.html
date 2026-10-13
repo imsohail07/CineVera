@@ -1818,8 +1818,8 @@
 
     // Multi-server streaming
     const SERVERS = {
-        1: { name: 'Server 1', movie: (id) => `%VITE_STREAM_SERVER_1_MOVIE%${id}`, tv: (id, s, e) => `%VITE_STREAM_SERVER_1_TV%${id}&season=${s}&episode=${e}` },
-        2: { name: 'Server 2', movie: (id) => `%VITE_STREAM_SERVER_2_MOVIE%${id}`, tv: (id, s, e) => `%VITE_STREAM_SERVER_2_TV%${id}/${s}-${e}` }
+        1: { name: 'Server 1', movie: (id) => `%VITE_STREAM_SERVER_1_MOVIE%${id}`, tv: (id, s, e) => `%VITE_STREAM_SERVER_1_TV%${id}/${s}/${e}` },
+        2: { name: 'Server 2', movie: (id) => `%VITE_STREAM_SERVER_2_MOVIE%${id}`, tv: (id, s, e) => `%VITE_STREAM_SERVER_2_TV%${id}/${s}/${e}` }
     };
     let currentServer = parseInt(localStorage.getItem('cv-server') || '1');
     let currentStreamInfo = null; // { tmdbId, isTV, season, episode, title }
